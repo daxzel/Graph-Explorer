@@ -15,17 +15,18 @@
  */
 package com.vaadin.graph;
 
-import java.util.*;
-
 import com.vaadin.event.FieldEvents.TextChangeEvent;
 import com.vaadin.event.FieldEvents.TextChangeListener;
-import com.vaadin.graph.client.*;
-import com.vaadin.ui.AbstractTextField.TextChangeEventMode;
+import com.vaadin.graph.client.ArcProxy;
+import com.vaadin.graph.client.NodeProxy;
 import com.vaadin.ui.*;
+import com.vaadin.ui.AbstractTextField.TextChangeEventMode;
+
+import java.util.*;
 
 /**
  * For loading a graph from a graph database.
- * 
+ *
  * @author Marlon Richert @ <a href="http://vaadin.com/">Vaadin</a>
  */
 class GraphController<N extends Node, A extends Arc> {
@@ -37,7 +38,12 @@ class GraphController<N extends Node, A extends Arc> {
 
     public GraphController(GraphRepository<N, A> repository) {
         this.repository = repository;
-        load(repository.getHomeNode());
+        for (Node node : repository.getOppenedNodes()) {
+            load(node);
+        }
+        for (A arc : repository.getOppenedArcs()) {
+            addArc(arc);
+        }
     }
 
     private void addGroupRel(String arcId, String arcType, String fromId,
@@ -52,25 +58,26 @@ class GraphController<N extends Node, A extends Arc> {
         ArcProxy p = new ArcProxy("" + arc.getId(), arc.getLabel());
         p.setLabel(getLabel(arc));
         model.addArc(p, model.getNode("" + repository.getTail(arc).getId()),
-                     model.getNode("" + repository.getHead(arc).getId()));
+                model.getNode("" + repository.getHead(arc).getId()));
     }
 
     private static String getLabel(Node node, boolean html) {
-        StringBuilder builder = new StringBuilder(node.getLabel() + "; ");
-        String delim = ", ";
-        String open = "";
-        String close = ": ";
         if (html) {
-            builder = new StringBuilder("<b>" + node.getLabel() + "</b><br>");
-            delim = "<br>";
-            open = "<i>";
-            close = ":</i> ";
+            return node.getContent();
+        } else {
+
+            StringBuilder builder = new StringBuilder(node.getLabel() + "; ");
+            String delim = ", ";
+            String open = "";
+            String close = ": ";
+
+            for (Map.Entry<String, Object> property : node.getProperties().entrySet()) {
+                builder.append(open).append(property.getKey()).append(close).append(property.getValue()).append(delim);
+            }
+            String label = builder.toString();
+            return label;
         }
-        for (Map.Entry<String, Object> property : node.getProperties().entrySet()) {
-            builder.append(open).append(property.getKey()).append(close).append(property.getValue()).append(delim);
-        }
-        String label = builder.toString();
-        return label;
+
     }
 
     private static String getGroupLabel(String arcType) {
@@ -136,7 +143,7 @@ class GraphController<N extends Node, A extends Arc> {
                 stringMatcher.addListener(new TextChangeListener() {
                     public void textChange(TextChangeEvent event) {
                         String query = event.getText().toLowerCase().replaceAll("\\s",
-                                                                                "");
+                                "");
 
                         matchList.removeAllItems();
 
@@ -210,13 +217,13 @@ class GraphController<N extends Node, A extends Arc> {
         }
         n.setState(NodeProxy.EXPANDED);
         N node = repository.getNodeById(nodeId);
-        for (Arc.Direction dir : new Arc.Direction[] {Arc.Direction.INCOMING,
-                                                      Arc.Direction.OUTGOING}) {
+        for (Arc.Direction dir : new Arc.Direction[]{Arc.Direction.INCOMING,
+                Arc.Direction.OUTGOING}) {
             for (String label : repository.getArcLabels()) {
                 Map<String, A> arcs = new HashMap<String, A>();
                 for (A arc : repository.getArcs(node, label, dir)) {
                     arcs.put("" + repository.getOpposite(node, arc).getId(),
-                             arc);
+                            arc);
                 }
                 int nrArcs = arcs.size();
                 if (nrArcs > 10) {
@@ -228,14 +235,14 @@ class GraphController<N extends Node, A extends Arc> {
                     groupNode.setKind(NodeProxy.GROUP);
                     groupNode.setContent(nrArcs + GROUP_LABEL);
                     switch (dir) {
-                    case INCOMING:
-                        addGroupRel(groupId, label, groupId, nodeId);
-                        break;
-                    case OUTGOING:
-                        addGroupRel(groupId, label, nodeId, groupId);
-                        break;
-                    default:
-                        throw new AssertionError("unexpected direction " + dir);
+                        case INCOMING:
+                            addGroupRel(groupId, label, groupId, nodeId);
+                            break;
+                        case OUTGOING:
+                            addGroupRel(groupId, label, nodeId, groupId);
+                            break;
+                        default:
+                            throw new AssertionError("unexpected direction " + dir);
                     }
                     neighbors.add(groupNode);
                     groups.put(groupId, arcs);

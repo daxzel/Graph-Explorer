@@ -16,6 +16,7 @@
 package com.vaadin.graph;
 
 import java.util.Collection;
+import java.util.List;
 
 public interface GraphRepository<N extends Node, A extends Arc> {
     /** Gets the node that the given arc points away from. */
@@ -43,6 +44,11 @@ public interface GraphRepository<N extends Node, A extends Arc> {
 
     /** Gets the "origin" of the graph. */
     N getHomeNode();
+
+    /** Gets the "origin" of the graph. */
+    List<N> getOppenedNodes();
+
+    List<A> getOppenedArcs();
 
     /** Gets the node at the other end of the given arc. */
     N getOpposite(N node, A arc);
